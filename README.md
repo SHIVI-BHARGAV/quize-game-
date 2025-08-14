@@ -12,3 +12,10 @@ Real-time score display
 Responsive for mobile & desktop
 
 Easy to customize question sets
+# Quiz App
+
+An interactive quiz app built with HTML, CSS, and JavaScript.
+
+## Screenshot
+![Quiz App Screenshot]("C:\Users\Dell\Pictures\Screenshots\quizess.png")
+
