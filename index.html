@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Infinite GK Quiz — 10s timer</title>
+<style>
+  :root{
+    --bg:#071033; --card:#0b1830; --accent1:#6b7cff; --accent2:#00d4ff;
+    --ok:#4ade80; --bad:#ff6b6b; --text:#eef6ff; --muted:#9fb0c6;
+    --glass: rgba(255,255,255,0.03);
+    font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,#031026,var(--bg)); color:var(--text); padding:18px;
+  }
+
+  .app{width:100%;max-width:920px; border-radius:12px; overflow:hidden; display:grid;
+       grid-template-columns:1fr 320px; gap:18px; box-shadow:0 12px 40px rgba(2,6,23,0.7);}
+  .player{padding:22px; background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);}
+  .side{background:linear-gradient(180deg,var(--card), rgba(255,255,255,0.02)); padding:18px}
+  h1{margin:0;font-size:20px}
+  .subtitle{color:var(--muted); margin-top:6px; font-size:13px}
+
+  .qcard{margin-top:18px; padding:18px; border-radius:12px; background:var(--glass); border:1px solid rgba(255,255,255,0.03)}
+  .meta{display:flex; justify-content:space-between; align-items:center; gap:12px}
+  .question{font-size:18px; margin:12px 0 14px; line-height:1.4}
+  .choices{display:grid; gap:10px}
+  .choice{
+    padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.04);
+    background:transparent; color:inherit; text-align:left; cursor:pointer; transition:transform .12s, box-shadow .12s;
+  }
+  .choice:active{transform:scale(.997)}
+  .choice.correct{border-color: rgba(74,222,128,0.25); box-shadow:0 6px 18px rgba(74,222,128,0.06); background:rgba(74,222,128,0.04)}
+  .choice.wrong{border-color: rgba(255,107,107,0.2); box-shadow:0 6px 18px rgba(255,107,107,0.04); background:rgba(255,107,107,0.04)}
+
+  .timer-wrap{height:10px; background:rgba(255,255,255,0.03); border-radius:10px; overflow:hidden; margin-top:12px}
+  .timer-bar{height:100%; width:100%; background:linear-gradient(90deg,var(--accent1),var(--accent2)); transition:width 0.2s linear}
+
+  .controls{display:flex; gap:8px; margin-top:12px}
+  button.btn{padding:8px 10px; border-radius:8px; background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04); cursor:pointer}
+  button.primary{background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:#021025; border:none}
+
+  .stats{display:flex; gap:12px; align-items:center}
+  .big{font-weight:700; font-size:20px}
+
+  .side .panel{background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03)}
+  .muted{color:var(--muted)}
+  a.link{color:inherit; text-decoration:underline}
+
+  @media (max-width:900px){ .app{grid-template-columns:1fr} .side{order:2} .player{order:1} }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Infinite GK Quiz">
+    <main class="player">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px">
+        <div>
+          <h1>Infinite GK Quiz</h1>
+          <div class="subtitle">General Knowledge questions (Open Trivia DB) — answer until correct</div>
+        </div>
+        <div class="stats">
+          <div class="muted" style="text-align:right">Score<div class="big" id="score">0</div></div>
+          <div class="muted" style="text-align:right">Streak<div class="big" id="streak">0</div></div>
+        </div>
+      </div>
+
+      <div class="qcard" id="qcard" aria-live="polite">
+        <div class="meta">
+          <div class="muted" id="source">Source: Open Trivia DB (GK)</div>
+          <div class="muted" id="difficulty">—</div>
+        </div>
+
+        <div class="question" id="question">Loading question…</div>
+
+        <div class="choices" id="choices" role="list"></div>
+
+        <div class="timer-wrap" aria-hidden="false" title="Time left">
+          <div id="timerBar" class="timer-bar" style="width:100%"></div>
+        </div>
+
+        <div class="controls">
+          <button id="skip" class="btn">Skip (next)</button>
+          <button id="auto" class="btn">Auto-next: ON</button>
+          <button id="resetCounts" class="btn">Reset counts</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="side" aria-hidden="false">
+      <div class="panel">
+        <div class="muted">Status: <span id="status">Initializing…</span></div>
+        <div style="height:8px"></div>
+        <div class="muted">Total attempts: <span id="attempts">0</span></div>
+        <div class="muted">Total correct: <span id="totalCorrect">0</span></div>
+        <div style="height:12px"></div>
+        <div class="muted">Local fallback bank: <span id="bankSize">0</span></div>
+        <div style="height:10px"></div>
+        <div class="muted">API used: <a id="apiLink" class="link" href="https://opentdb.com" target="_blank" rel="noopener">Open Trivia DB</a></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="panel" style="margin-top:12px">
+        <div class="muted" style="margin-bottom:6px">Controls</div>
+        <div style="display:flex; gap:8px">
+          <button id="stopBtn" class="btn">Stop</button>
+          <button id="resumeBtn" class="btn">Resume</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+<script>
+/* Settings */
+const TIME_PER_Q = 10; // seconds
+const GK_API = 'https://opentdb.com/api.php?amount=1&category=9&type=multiple&encode=url3986';
+
+const DOM = {
+  question: document.getElementById('question'),
+  choices: document.getElementById('choices'),
+  timerBar: document.getElementById('timerBar'),
+  status: document.getElementById('status'),
+  difficulty: document.getElementById('difficulty'),
+  source: document.getElementById('source'),
+  score: document.getElementById('score'),
+  streak: document.getElementById('streak'),
+  attempts: document.getElementById('attempts'),
+  totalCorrect: document.getElementById('totalCorrect'),
+  bankSize: document.getElementById('bankSize'),
+  apiLink: document.getElementById('apiLink'),
+  autoBtn: document.getElementById('auto'),
+  skipBtn: document.getElementById('skip'),
+  resetBtn: document.getElementById('resetCounts'),
+  stopBtn: document.getElementById('stopBtn'),
+  resumeBtn: document.getElementById('resumeBtn')
+};
+
+/* State */
+let state = {
+  currentQ: null,
+  timeLeft: TIME_PER_Q,
+  timerId: null,
+  score: 0,
+  streak: 0,
+  attempts: 0,
+  totalCorrect: 0,
+  autoNext: true,
+  running: true
+};
+
+/* Local fallback bank (add more if you want) */
+const LOCAL_BANK = [
+  { q: 'Which planet is known as the Red Planet?', choices: ['Venus','Mars','Jupiter','Saturn'], answer:2, diff:'Easy' },
+  { q: 'Who wrote the Indian national anthem?', choices: ['Rabindranath Tagore','Bankim Chandra Chatterjee','Tulsidas','Surdas'], answer:0, diff:'Medium' },
+  { q: 'What is the capital of France?', choices: ['Paris','Berlin','Madrid','Rome'], answer:0, diff:'Easy' },
+  { q: 'Which gas do plants absorb from the atmosphere?', choices: ['Oxygen','Nitrogen','Carbon dioxide','Helium'], answer:2, diff:'Easy' },
+  { q: 'HTML stands for?', choices: ['Hyper Text Markup Language','Home Tool Markup Language','Hyperlinks Text Mark Language','High Text Machine Language'], answer:0, diff:'Easy' }
+];
+DOM.bankSize.textContent = LOCAL_BANK.length;
+
+/* Helpers */
+const decode = s => {
+  try { return decodeURIComponent(s); } catch { 
+    const t = document.createElement('textarea'); t.innerHTML = s; return t.value || s; 
+  }
+};
+const shuffle = arr => {
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+};
+function setStatus(t){ DOM.status.textContent = t; }
+
+/* Timer functions */
+function startTimer(){
+  stopTimer();
+  state.timeLeft = TIME_PER_Q;
+  updateTimerBar();
+  state.timerId = setInterval(()=>{
+    if(!state.running) return;
+    state.timeLeft -= 0.2; // smoother feel (0.2s)
+    if(state.timeLeft <= 0){
+      state.timeLeft = 0;
+      updateTimerBar();
+      stopTimer();
+      // treat as wrong (same question)
+      setStatus('Time up — same question (try again)');
+      flashAllWrong();
+      setTimeout(()=> {
+        if(state.running) loadSameQuestion(); 
+      }, 700);
+    } else updateTimerBar();
+  }, 200);
+}
+function stopTimer(){ if(state.timerId){ clearInterval(state.timerId); state.timerId = null; } }
+function updateTimerBar(){ const pct = Math.max(0, (state.timeLeft / TIME_PER_Q) * 100); DOM.timerBar.style.width = pct + '%'; }
+
+/* UI: render question object {q, choices[], answer, diff} */
+function renderQuestion(qObj){
+  state.currentQ = qObj;
+  DOM.question.textContent = qObj.q;
+  DOM.difficulty.textContent = (qObj.diff || '—');
+  DOM.source.textContent = 'Source: Open Trivia DB (GK)';
+  DOM.choices.innerHTML = '';
+  qObj.choices.forEach((c,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.type = 'button';
+    btn.innerHTML = c;
+    btn.addEventListener('click', ()=>onChoice(i, btn));
+    DOM.choices.appendChild(btn);
+  });
+  startTimer();
+  setStatus('Question loaded');
+}
+
+/* Choice handler */
+function onChoice(index, btnEl){
+  if(!state.running) return;
+  // prevent multi click quickly
+  Array.from(DOM.choices.children).forEach(b=>b.disabled=true);
+  state.attempts++; DOM.attempts.textContent = state.attempts;
+  const correctIndex = state.currentQ.answer;
+  if(index === correctIndex){
+    btnEl.classList.add('correct');
+    state.score++; state.streak++; state.totalCorrect++;
+    DOM.score.textContent = state.score;
+    DOM.streak.textContent = state.streak;
+    DOM.totalCorrect.textContent = state.totalCorrect;
+    setStatus('Correct ✅');
+    stopTimer();
+    // small delay then next question if autoNext or wait if not
+    setTimeout(()=>{
+      Array.from(DOM.choices.children).forEach(b=>{ b.disabled=false; b.classList.remove('correct'); });
+      if(state.autoNext) loadNextQuestion();
+      else { setStatus('Correct — press Skip or wait'); startTimer(); } // resume timer to allow continue
+    }, 700);
+  } else {
+    btnEl.classList.add('wrong');
+    state.streak = 0; DOM.streak.textContent = state.streak;
+    setStatus('Wrong — try again');
+    // re-enable after short time and reset timer for same question
+    setTimeout(()=>{
+      Array.from(DOM.choices.children).forEach(b=>{ b.disabled=false; b.classList.remove('wrong'); });
+      // reset timer so user gets full time again
+      startTimer();
+    }, 700);
+  }
+}
+
+/* helper to flash wrong for all choices on timeout/skip */
+function flashAllWrong(){
+  Array.from(DOM.choices.children).forEach(b=>{
+    b.classList.add('wrong');
+  });
+  setTimeout(()=> Array.from(DOM.choices.children).forEach(b=>b.classList.remove('wrong')), 600);
+}
+
+/* API fetch + fallback */
+async function fetchFromAPI(){
+  setStatus('Fetching GK question...');
+  try{
+    const res = await fetch(GK_API, {cache:'no-store'});
+    if(!res.ok) throw new Error('Network response not ok');
+    const json = await res.json();
+    if(!json.results || !json.results.length) throw new Error('No results');
+    const r = json.results[0];
+    const qText = decode(r.question);
+    const correct = decode(r.correct_answer);
+    const incorrect = (r.incorrect_answers||[]).map(x=>decode(x));
+    const choices = shuffle([correct, ...incorrect]);
+    const answerIndex = choices.indexOf(correct);
+    return { q: qText, choices, answer: answerIndex, diff: r.difficulty || '—' };
+  }catch(err){
+    console.warn('API failed, falling back to local bank:', err);
+    throw err;
+  }
+}
+async function getQuestion(){
+  try{
+    const q = await fetchFromAPI();
+    DOM.apiLink.href = 'https://opentdb.com';
+    DOM.source.textContent = 'Source: Open Trivia DB (GK)';
+    return q;
+  }catch(e){
+    // fallback random pick
+    const pick = LOCAL_BANK[Math.floor(Math.random()*LOCAL_BANK.length)];
+    DOM.apiLink.removeAttribute('href');
+    DOM.source.textContent = 'Source: Local fallback';
+    return { q: pick.q, choices: pick.choices.slice(), answer: pick.answer, diff: pick.diff };
+  }
+}
+
+/* load next OR same */
+async function loadNextQuestion(){
+  try{
+    const q = await getQuestion();
+    renderQuestion(q);
+  }catch(e){
+    // last resort use local
+    const pick = LOCAL_BANK[Math.floor(Math.random()*LOCAL_BANK.length)];
+    renderQuestion({ q: pick.q, choices: pick.choices.slice(), answer: pick.answer, diff: pick.diff });
+  }
+}
+function loadSameQuestion(){
+  // just re-render the current question (reset timer)
+  if(state.currentQ) renderQuestion(state.currentQ);
+}
+
+/* controls */
+DOM.autoBtn.addEventListener('click', (e)=>{
+  state.autoNext = !state.autoNext;
+  e.target.textContent = 'Auto-next: ' + (state.autoNext ? 'ON' : 'OFF');
+});
+DOM.skipBtn.addEventListener('click', async ()=>{
+  // skip to new question; resets streak but counts as attempt
+  state.streak = 0; DOM.streak.textContent = state.streak;
+  state.attempts++; DOM.attempts.textContent = state.attempts;
+  setStatus('Skipped — loading next');
+  await loadNextQuestion();
+});
+DOM.resetBtn.addEventListener('click', ()=>{
+  state.score=0; state.streak=0; state.attempts=0; state.totalCorrect=0;
+  DOM.score.textContent='0'; DOM.streak.textContent='0'; DOM.attempts.textContent='0'; DOM.totalCorrect.textContent='0';
+  setStatus('Counts reset');
+});
+DOM.stopBtn.addEventListener('click', ()=>{
+  state.running = false; stopTimer(); setStatus('Stopped — click Resume to continue'); Array.from(DOM.choices.children).forEach(b=>b.disabled=true);
+});
+DOM.resumeBtn.addEventListener('click', ()=>{
+  if(!state.running){ state.running=true; Array.from(DOM.choices.children).forEach(b=>b.disabled=false); startTimer(); setStatus('Resumed'); }
+});
+
+/* initialization */
+(async function init(){
+  DOM.score.textContent = state.score;
+  DOM.streak.textContent = state.streak;
+  DOM.attempts.textContent = state.attempts;
+  DOM.totalCorrect.textContent = state.totalCorrect;
+  setStatus('Initializing…');
+  await loadNextQuestion();
+  setStatus('Ready');
+})();
+</script>
+</body>
+</html>
