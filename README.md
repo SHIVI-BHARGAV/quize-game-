@@ -17,5 +17,6 @@ Easy to customize question sets
 An interactive quiz app built with HTML, CSS, and JavaScript.
 
 ## Screenshot
-![Quiz App Screenshot]("C:\Users\Dell\Pictures\Screenshots\quizess.png")
+![Quiz App Screenshot]("<img width="966" height="530" alt="quizess" src="https://github.com/user-attachments/assets/fcb18f16-47f6-4a22-915b-75a32fa9a22a" />
+")
 
